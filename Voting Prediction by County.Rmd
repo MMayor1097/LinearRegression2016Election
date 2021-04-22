@@ -1,0 +1,237 @@
+---
+title: "Examining the relationship between county demogrpahic factors and voting outcomes"
+output:
+  revealjs::revealjs_presentation:
+    theme: night
+    highlight: zenburn
+    center: true
+    transition: fade
+    slide_level: 2
+---
+```{r, echo=FALSE, results=FALSE, message=FALSE}
+library(tidyverse)
+library(lubridate)
+library(stringr) 
+library(corrplot) 
+library(psych) 
+library(GGally) 
+library("jpeg")
+```
+
+
+## Summary of our data
+
+```{r}
+myData <- read.csv("../data/votes.csv") 
+str(myData) 
+```
+
+
+## Cleaning our data 
+```{r, echo=FALSE, results=FALSE, message=FALSE}
+maindata <- myData %>%
+  select(-1, -2, -3, -13, -14, -15, -16, -17, -18, -19, -20, -21, -22, -23, -24, -25, -27, -29, -79, -80, -81, -82)
+
+
+relevant_1 <- maindata %>%
+  select(7, 8, 9, 11, 12, 13, 14, 38, 44, 45, 46, 47, 48, 49, 50, 58, 27, 28)
+
+
+colnames(relevant_1) <-c("DemPercentRepPercent", "State", "County", "PopulationChange", "PercentAgeUnder5", "PercentAgeUnder18", "PercentAgeOver65", "MedianHouseIncome", "NumberFirms", "PercentBlackFirms", "PercentNAFirms", "PercentAsianFirms", "PercentHawaiianFirms", "PercentHispanicFirms", "PercentWomenFirms", "Density", "PercentHSGrad", "PercentCollegeGrad")
+``` 
+
+```{r}
+str(relevant_1)
+```
+
+
+## Percent Over 65 
+```{r, echo=FALSE, results=FALSE, message=FALSE}
+ggpairs(relevant_1[c('DemPercentRepPercent', 'PercentAgeOver65')], lower = list(continuous = wrap("smooth", color = 'blue', alpha = 0.3, size=0.3)))
+
+```
+
+## Percent of Women Firms
+```{r, echo=FALSE, results=FALSE, message=FALSE}
+ggpairs(relevant_1[c('DemPercentRepPercent', 'PercentWomenFirms')], lower = list(continuous = wrap("smooth", color = 'blue', alpha = 0.3, size=0.3)))
+```
+
+
+## Percent of Median House Income
+```{r, echo=FALSE, results=FALSE, message=FALSE}
+ggpairs(relevant_1[c('DemPercentRepPercent', 'MedianHouseIncome')], lower = list(continuous = wrap("smooth", color = 'blue', alpha = 0.3, size=0.3)))
+```
+
+
+## Percent of College Graduate
+```{r, echo=FALSE, results=FALSE, message=FALSE}
+ggpairs(relevant_1[c('DemPercentRepPercent', 'PercentCollegeGrad')], lower = list(continuous = wrap("smooth", color = 'blue', alpha = 0.3, size=0.3)))
+```
+
+
+## Hypothesis Test 
+
+Null Hypothesis = None of our independent variables contributes significantly to our model 
+
+Alternative Hypothesis = At least one of our independent variables contributes significantly to our model
+
+
+## We are going to run a multi-linear regression...
+```{r, echo=FALSE, results=FALSE, message=FALSE}
+MultiRegression = lm(DemPercentRepPercent ~ PopulationChange + PercentAgeUnder5 + PercentAgeUnder18 + PercentAgeOver65 + MedianHouseIncome + PercentBlackFirms + PercentNAFirms + PercentAsianFirms + PercentHispanicFirms + PercentWomenFirms + Density + PercentHSGrad + PercentCollegeGrad, data = relevant_1)
+
+```
+
+```{r}
+summary(MultiRegression)
+```
+
+
+## This is our more condensed model 
+
+```{r, echo=FALSE, results=FALSE, message=FALSE}
+CondensedModel = lm(DemPercentRepPercent ~ PercentAgeUnder18 + PercentAgeOver65 + PercentBlackFirms + PercentNAFirms +  PercentHispanicFirms + PercentCollegeGrad, data = relevant_1)
+
+```
+
+```{r}
+summary(CondensedModel)
+```
+
+
+##   Extra Findings 
+
+
+```{r, echo=FALSE, results=FALSE, message=FALSE}
+MyPredData <- read.csv("../data/votes.csv")
+```
+
+
+```{r, echo=FALSE, results=FALSE, message=FALSE}
+MainPredData <- MyPredData %>%
+  select(-1, -2, -3, -13, -14, -15, -16, -17, -18, -19, -20, -21, -22, -23, -24, -25, -27, -29, -79, -80, -81, -82)
+MainPredData
+```
+
+
+
+```{r, echo=FALSE, results=FALSE, message=FALSE}
+relevant_p <- MainPredData %>%
+  select(7, 8, 9, 11, 12, 13, 14, 38, 44, 45, 46, 47, 48, 49, 50, 58, 27, 28)
+relevant_p
+```
+
+
+```{r, echo=FALSE, results=FALSE, message=FALSE}
+colnames(relevant_p) <-c("DemPercentRepPercent", "State", "County", "PopulationChange", "PercentAgeUnder5", "PercentAgeUnder18", "PercentAgeOver65", "MedianHouseIncome", "NumberFirms", "PercentBlackFirms", "PercentNAFirms", "PercentAsianFirms", "PercentHawaiianFirms", "PercentHispanicFirms", "PercentWomenFirms", "Density", "PercentHSGrad", "PercentCollegeGrad")
+
+```
+
+
+## Let's set the sizes of the training and validation data sets. 
+
+```{r}
+ trainSize <- round(nrow(relevant_p) * 0.7)
+ testSize <- nrow(relevant_p) - trainSize
+```
+
+## Let's partition the data
+
+```{r}
+set.seed(1)
+ training_indices <- sample(seq_len(nrow(relevant_p)),
+   size=trainSize)
+ trainSet <- relevant_p[training_indices, ]
+ testSet <- relevant_p[-training_indices, ]
+```
+
+
+
+```{r, echo=FALSE, results=FALSE, message=FALSE}
+model <- lm(DemPercentRepPercent ~ PopulationChange + PercentAgeUnder5 + PercentAgeUnder18 + PercentAgeOver65 + MedianHouseIncome + NumberFirms + PercentBlackFirms + PercentNAFirms + PercentAsianFirms + PercentHawaiianFirms + PercentHispanicFirms + PercentWomenFirms + Density + PercentHSGrad + PercentCollegeGrad, data=trainSet)
+
+summary(model)
+```
+
+
+```{r, echo=FALSE, results=FALSE, message=FALSE}
+model1 <- lm(DemPercentRepPercent ~ PopulationChange + PercentAgeUnder5 + PercentAgeUnder18 + PercentAgeOver65 + MedianHouseIncome + NumberFirms + PercentBlackFirms + PercentNAFirms + PercentAsianFirms + PercentHispanicFirms + PercentWomenFirms + Density + PercentHSGrad + PercentCollegeGrad, data=trainSet)
+
+summary(model1)
+```
+
+## This looks like a good model.
+```{r}
+model2 <- lm(DemPercentRepPercent ~ PopulationChange + PercentAgeUnder5 + PercentAgeUnder18 + PercentAgeOver65 + MedianHouseIncome + PercentBlackFirms + PercentNAFirms + PercentAsianFirms + PercentHispanicFirms + PercentWomenFirms + Density + PercentHSGrad + PercentCollegeGrad, data=trainSet)
+
+summary(model2)
+```
+
+## Let's make predictions
+
+```{r}
+predictions <- predict(model2, testSet) 
+```
+
+
+## Train RMSE 
+
+```{r}
+sqrt(mean((trainSet$DemPercentRepPercent - predict(model2, trainSet)) ^ 2))
+```
+
+
+## Test RMSE
+
+```{r}
+sqrt(mean((testSet$DemPercentRepPercent - predict(model2, testSet)) ^ 2))
+```
+
+## Model for a hypothetical county we would expect to vote more Democrat
+
+```{r}
+
+predict(model2, newdata = data.frame(
+  PopulationChange = -8,
+  PercentAgeUnder5 = 8,
+  PercentAgeUnder18 = 15,
+  PercentAgeOver65 = 10,
+  MedianHouseIncome = 35000,
+  PercentBlackFirms = 15,
+  PercentNAFirms = 3,
+  PercentAsianFirms = 10,
+  PercentHispanicFirms = 15,
+  PercentWomenFirms = 40,
+  Density = 4000,
+  PercentHSGrad = 80,
+  PercentCollegeGrad = 35
+  
+  
+))
+```
+
+## Model for a hypothetical county we would expect to vote more Republican
+
+```{r}
+
+predict(model2, newdata = data.frame(
+  PopulationChange = 8,
+  PercentAgeUnder5 = 2,
+  PercentAgeUnder18 = 25,
+  PercentAgeOver65 = 30,
+  MedianHouseIncome = 100000,
+  PercentBlackFirms = 0,
+  PercentNAFirms = 0,
+  PercentAsianFirms = 0,
+  PercentHispanicFirms = 0,
+  PercentWomenFirms = 0,
+  Density = 1,
+  PercentHSGrad = 50,
+  PercentCollegeGrad = 15
+  
+  
+))
+```
+
+
+
